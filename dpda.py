@@ -20,7 +20,6 @@ class State:
             for ta in transition_actions:
                 if (ta["stack_read"] == "@" or ta["stack_read"] == stack_symbol):
                     result.append(ta)
-            print(result)
             if result: return result
         return [None]
 
@@ -80,7 +79,6 @@ class NFA:
                                      "stack_read" : rule[2], 
                                      "next_state" : self.states[rule[3]],
                                      "stack_push" : rule[4]}
-                print(transition_action)
                 self.states[rule[0]].add_rule(rule[1], transition_action)
                 line = nfa_file.readline()
             nfa_file.close()
@@ -106,43 +104,27 @@ class NFA:
             input_file.close()
 
 
-    #recursively simulate string on NFA
-    def simulate(self, current, string, stack, stack_push="@", empty_cycle=set(), iter=0):
+    #recursively simulate string on PDA
+    def simulate(self, current, string, stack, stack_push="@", empty_cycle=set()):
         #kills path if no transition rule for previous symbol or path is @ cycle.
         if current == None or current in empty_cycle: return
         
-        
+        #push previous stack push symbol on top of stack
         if stack_push != "@": stack.append(stack_push)
-        #if in valid state and not in cycle try and read @. Keep track of states visited to prevent cycles.
         empty_string_stack = stack.copy()
         stack_top = ""
         if stack: stack_top = empty_string_stack.pop()
+        #if in valid state and not in cycle try and read @. Keep track of states visited to prevent cycles.
         empty_next = current.read_symbol('@', stack_top)
         new_empty_cycle = empty_cycle.copy()
         new_empty_cycle.add(current)
-        print("stack: ", stack)
-        print(iter)
-        iter += 1
+
         for s in empty_next:
-            if s and s["stack_read"] == "@":
-                print("@, @ stack sim :", s)
-                self.simulate(
-                    s["next_state"], 
+            if s: self.simulate(s["next_state"], 
                     string, 
-                    stack.copy(), 
-                    s["stack_push"], 
-                    new_empty_cycle,
-                    iter)
-            else:
-                if s: 
-                    print("@, r stack sim :", s)
-                    self.simulate(
-                    s["next_state"], 
-                    string, 
-                    empty_string_stack.copy(), 
-                    s["stack_push"], 
-                    new_empty_cycle,
-                    iter)
+                    stack.copy() if s["stack_read"] == "@" else empty_string_stack.copy(),
+                    s["stack_push"],
+                    new_empty_cycle)
 
         #if input string is empty and current state is accept state set accepts var to true
         if not string:
@@ -155,19 +137,10 @@ class NFA:
         if stack: stack_top = next_stack.pop()
         next_states = current.read_symbol(string[0], stack_top)
         for s in next_states: 
-            if s and s["stack_read"] == "@":
-                print("r, @ stack sim :", s)
-                self.simulate(
+            if s: self.simulate(
                     s["next_state"], 
                     string[1:], 
-                    stack.copy(), 
-                    s["stack_push"])
-            elif s: 
-                print("r, r stack sim :", s)
-                self.simulate(
-                    s["next_state"], 
-                    string[1:], 
-                    next_stack.copy(), 
+                    stack.copy() if s["stack_read"] == "@" else next_stack.copy(),
                     s["stack_push"])
 
 
